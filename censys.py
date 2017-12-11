@@ -1,6 +1,6 @@
 from cortexutils.analyzer import Analyzer
-import censys.certificates
-import censys.ipv4
+from censys.certificates import CensysCertificates
+from censys.ipv4 import CensysIPv4
 
 
 class CensysAnalyzer(Analyzer):
@@ -24,9 +24,9 @@ class CensysAnalyzer(Analyzer):
 
         :param ip: ipv4 address as string
         :type ip: str
-        :return:
+        :return: dict
         """
-        c = censys.ipv4.CensysIPv4(api_id=self.__uid, api_secret=self.__api_key)
+        c = CensysIPv4(api_id=self.__uid, api_secret=self.__api_key)
         return c.view(ip)
 
     def search_certificate(self, hash):
@@ -35,9 +35,18 @@ class CensysAnalyzer(Analyzer):
 
         :param hash: certificate hash
         :type hash: str
-        :return:
+        :return: dict
         """
-        c = censys.certificate.Censys
+        c = CensysCertificates(api_id=self.__uid, api_secret=self.__api_key)
+        return c.view(hash)
+
+    def run(self):
+        if self.data_type == 'ip':
+            self.report(self.search_hosts(self.get_data()))
+        elif self.data_type == 'hash':
+            self.report(self.search_certificate(self.get_data()))
+        else:
+            self.error('Data type not supported. Please use this analyzer with data types hash or ip.')
 
 
 if __name__ == '__main__':
