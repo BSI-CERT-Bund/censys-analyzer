@@ -61,7 +61,7 @@ class CensysAnalyzer(Analyzer):
                 })
             elif self.data_type == 'hash':
                 self.report({
-                    'hash': self.search_certificate(self.get_data())
+                    'cert': self.search_certificate(self.get_data())
                 })
             elif self.data_type == 'domain' or self.data_type == 'fqdn':
                 self.report({
@@ -83,14 +83,32 @@ class CensysAnalyzer(Analyzer):
             service_count = len(raw.get('protocols', []))
             heartbleed = raw.get('443', {}).get('https', {}).get('heartbleed', {}).get('heartbleed_vulnerable', False)
 
-            taxonomies.append(self.build_taxonomy('info', 'Censys', 'ServiceCount', service_count))
+            taxonomies.append(self.build_taxonomy('info', 'Censys', 'OpenServices', service_count))
             if heartbleed:
                 taxonomies.append(self.build_taxonomy('malicious', 'Censys', 'Heartbleed', 'vulnerable'))
         elif 'website' in raw:
-            pass
-        elif 'cert' in raw:
-            pass
+            raw = raw['website']
+            service_count = len(raw.get('tags', []))
 
+            taxonomies.append(self.build_taxonomy('info', 'Censys', 'OpenServices', service_count))
+        elif 'cert' in raw:
+            raw = raw['cert']
+            trusted_count = len(raw.get('validation', []))
+            validator_count = len(raw.get('validation', []))
+
+            for _, validator in raw.get('validation', []).items():
+                if validator.get('blacklisted', False) or \
+                   validator.get('in_revocation_set', False) or \
+                   (not validator.get('whitelisted', False) and not validator.get('valid', False)):
+                    trusted_count -= 1
+            if trusted_count < validator_count:
+                taxonomies.append(self.build_taxonomy('suspicious', 'Censys', 'TrustedCount', '{}/{}'.format(
+                    trusted_count, validator_count
+                )))
+            else:
+                taxonomies.append(self.build_taxonomy('info', 'Censys', 'TrustedCount', '{}/{}'.format(
+                    trusted_count, validator_count
+                )))
         return {
             'taxonomies': taxonomies
         }
